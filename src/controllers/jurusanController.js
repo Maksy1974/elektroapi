@@ -1,8 +1,16 @@
 const prisma = require("../lib/prisma");
 
+function jurusanBody(req) {
+  const b = req.body || {};
+  return {
+    namaJurusan: b.namaJurusan ?? b.namajurusan,
+    kajur: b.kajur,
+  };
+}
+
 exports.getAll = async (req, res, next) => {
   try {
-    const data = await prisma.kartuMahasiswa.findMany({ include: { mahasiswa: true } });
+    const data = await prisma.jurusan.findMany({ include: { prodi: true } });
     res.json(data);
   } catch (error) {
     next(error);
@@ -11,11 +19,11 @@ exports.getAll = async (req, res, next) => {
 
 exports.getById = async (req, res, next) => {
   try {
-    const data = await prisma.kartuMahasiswa.findUnique({
+    const data = await prisma.jurusan.findUnique({
       where: { id: req.params.id },
-      include: { mahasiswa: true },
+      include: { prodi: true },
     });
-    if (!data) return res.status(404).json({ message: "Kartu mahasiswa tidak ditemukan" });
+    if (!data) return res.status(404).json({ message: "Jurusan tidak ditemukan" });
     return res.json(data);
   } catch (error) {
     return next(error);
@@ -24,10 +32,11 @@ exports.getById = async (req, res, next) => {
 
 exports.create = async (req, res, next) => {
   try {
-    const data = await prisma.kartuMahasiswa.create({
+    const { namaJurusan, kajur } = jurusanBody(req);
+    const data = await prisma.jurusan.create({
       data: {
-        nomorKartu: req.body.nomorKartu,
-        mahasiswaId: Number(req.body.mahasiswaId),
+        namaJurusan,
+        kajur,
       },
     });
     return res.status(201).json(data);
@@ -38,10 +47,12 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const data = await prisma.kartuMahasiswa.update({
+    const { namaJurusan, kajur } = jurusanBody(req);
+    const data = await prisma.jurusan.update({
       where: { id: req.params.id },
       data: {
-        nomorKartu: req.body.nomorKartu,
+        namaJurusan,
+        kajur,
       },
     });
     return res.json(data);
@@ -52,8 +63,8 @@ exports.update = async (req, res, next) => {
 
 exports.remove = async (req, res, next) => {
   try {
-    await prisma.kartuMahasiswa.delete({ where: { id: req.params.id } });
-    return res.json({ message: "Kartu mahasiswa berhasil dihapus" });
+    await prisma.jurusan.delete({ where: { id: req.params.id } });
+    return res.json({ message: "Jurusan berhasil dihapus" });
   } catch (error) {
     return next(error);
   }

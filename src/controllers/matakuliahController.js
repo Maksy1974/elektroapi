@@ -1,89 +1,97 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../lib/prisma");
 
-// GET ALL
-exports.getAll = async (req, res) => {
+exports.getAll = async (req, res, next) => {
   try {
     const data = await prisma.matakuliah.findMany({
       include: {
-        krs: {
-          include: {
-            mahasiswa: true,
-          },
-        },
+        prodi: true,
+        laboratorium: true,
+        bahanAjar: { include: { dosen: true } },
+        pengampu: { include: { dosen: true } },
+        krs: { include: { mahasiswa: true } },
       },
     });
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-// GET BY ID
-exports.getById = async (req, res) => {
+exports.getById = async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
-
     const data = await prisma.matakuliah.findUnique({
-      where: { id },
+      where: { id: req.params.id },
       include: {
-        krs: {
-          include: {
-            mahasiswa: true,
-          },
-        },
+        prodi: true,
+        laboratorium: true,
+        bahanAjar: { include: { dosen: true } },
+        pengampu: { include: { dosen: true } },
+        krs: { include: { mahasiswa: true } },
       },
     });
-
-    res.json(data);
+    if (!data) return res.status(404).json({ message: "Matakuliah tidak ditemukan" });
+    return res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
 
-// CREATE
-exports.create = async (req, res) => {
+exports.create = async (req, res, next) => {
   try {
-    const { nama } = req.body;
-
     const data = await prisma.matakuliah.create({
-      data: { nama },
+      data: {
+        kodeMatakuliah: req.body.kodeMatakuliah,
+        nama: req.body.nama,
+        sks: Number(req.body.sks),
+        deskripsiMatakuliah: req.body.deskripsiMatakuliah,
+        kategori: req.body.kategori,
+        semester: Number(req.body.semester),
+        prodiId: Number(req.body.prodiId),
+        laboratoriumId:
+          req.body.laboratoriumId !== undefined &&
+          req.body.laboratoriumId !== null &&
+          req.body.laboratoriumId !== ""
+            ? Number(req.body.laboratoriumId)
+            : null,
+      },
     });
-
-    res.json(data);
+    return res.status(201).json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
 
-// UPDATE
-exports.update = async (req, res) => {
+exports.update = async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
-    const { nama } = req.body;
-
     const data = await prisma.matakuliah.update({
-      where: { id },
-      data: { nama },
+      where: { id: req.params.id },
+      data: {
+        kodeMatakuliah: req.body.kodeMatakuliah,
+        nama: req.body.nama,
+        sks: req.body.sks !== undefined ? Number(req.body.sks) : undefined,
+        deskripsiMatakuliah: req.body.deskripsiMatakuliah,
+        kategori: req.body.kategori,
+        semester: req.body.semester !== undefined ? Number(req.body.semester) : undefined,
+        prodiId: req.body.prodiId !== undefined ? Number(req.body.prodiId) : undefined,
+        laboratoriumId:
+          req.body.laboratoriumId !== undefined
+            ? req.body.laboratoriumId === null || req.body.laboratoriumId === ""
+              ? null
+              : Number(req.body.laboratoriumId)
+            : undefined,
+      },
     });
-
-    res.json(data);
+    return res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
 
-// DELETE
-exports.remove = async (req, res) => {
+exports.remove = async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
-
-    await prisma.matakuliah.delete({
-      where: { id },
-    });
-
-    res.json({ message: "Matakuliah berhasil dihapus" });
+    await prisma.matakuliah.delete({ where: { id: req.params.id } });
+    return res.json({ message: "Matakuliah berhasil dihapus" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };

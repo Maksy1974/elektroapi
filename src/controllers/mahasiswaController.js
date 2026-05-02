@@ -1,210 +1,122 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
-const upload = require("../middleware/upload");
-const cloudinary = require("../config/cloudinary");
-// GET ALL (include relasi)
-exports.getAll = async (req, res) => {
+const prisma = require("../lib/prisma");
+const { uploadBufferToCloudinary, removeCloudinaryAssetByUrl } = require("../utils/cloudinaryFile");
+
+exports.getAll = async (req, res, next) => {
   try {
     const data = await prisma.mahasiswa.findMany({
       include: {
-        prodi: true,
+        prodi: { include: { jurusan: true } },
         kartu: true,
-        krs: {
-          include: {
-            matakuliah: true,
-          },
-        },
+        krs: { include: { matakuliah: true } },
       },
     });
-
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-// GET BY ID
-exports.getById = async (req, res) => {
+exports.getById = async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
-
     const data = await prisma.mahasiswa.findUnique({
-      where: { id },
+      where: { id: req.params.id },
       include: {
-        prodi: true,
+        prodi: { include: { jurusan: true } },
         kartu: true,
-        krs: {
-          include: {
-            matakuliah: true,
-          },
-        },
+        krs: { include: { matakuliah: true } },
       },
     });
 
-    res.json(data);
+    if (!data) return res.status(404).json({ message: "Mahasiswa tidak ditemukan" });
+    return res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
 
-// CREATE
-// exports.create = async (req, res) => {
-//   try {
-//     const { nama, nim, jurusan, prodiId } = req.body;
-
-//     const data = await prisma.mahasiswa.create({
-//       data: {
-//         nama,
-//         nim,
-//         jurusan,
-//         prodiId: parseInt(prodiId),
-//       },
-//     });
-
-//     res.json(data);
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// };
-exports.create = async (req, res) => {
+exports.create = async (req, res, next) => {
   try {
-    const { nama, nim, jurusan, prodiId } = req.body;
-
-    let fotoUrl = null;
-
-    if (req.file) {
-      const result = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream({ folder: "mahasiswa" }, (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        });
-        stream.end(req.file.buffer);
-      });
-
-      fotoUrl = result.secure_url;
+    const email = String(req.body.email ?? "").trim();
+    if (!email) {
+      return res.status(400).json({ message: "Email wajib diisi" });
     }
+
+    const fotoUrl = req.file
+      ? (await uploadBufferToCloudinary(req.file.buffer, "mahasiswa")).secure_url
+      : null;
 
     const data = await prisma.mahasiswa.create({
       data: {
-        nama,
-        nim,
-        jurusan,
-        prodiId: parseInt(prodiId),
+        nama: req.body.nama,
+        nim: req.body.nim,
+        email,
+        alamat: req.body.alamat,
+        telp: req.body.telp,
+        tempatLahir: req.body.tempatLahir,
+        tanggalLahir: new Date(req.body.tanggalLahir),
+        semester: Number(req.body.semester),
+        prodiId: Number(req.body.prodiId),
         foto: fotoUrl,
       },
     });
 
-    res.json(data);
+    return res.status(201).json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
 
-// UPDATE
-// exports.update = async (req, res) => {
-//   try {
-//     const id = parseInt(req.params.id);
-//     const { nama, nim, jurusan, prodiId } = req.body;
-
-//     const data = await prisma.mahasiswa.update({
-//       where: { id },
-//       data: {
-//         nama,
-//         nim,
-//         jurusan,
-//         prodiId: parseInt(prodiId),
-//       },
-//     });
-
-//     res.json(data);
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// };
-
-exports.update = async (req, res) => {
+exports.update = async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
-    const { nama, nim, jurusan, prodiId } = req.body;
+    const existing = await prisma.mahasiswa.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ message: "Mahasiswa tidak ditemukan" });
 
-    let fotoUrl;
-
-    // ambil data lama
-    const existing = await prisma.mahasiswa.findUnique({
-      where: { id },
-    });
-
+    let fotoUrl = existing.foto;
     if (req.file) {
-      // hapus foto lama dari Cloudinary (optional tapi disarankan)
-      if (existing.foto) {
-        const publicId = existing.foto.split("/").pop().split(".")[0];
-        await cloudinary.uploader.destroy(`mahasiswa/${publicId}`);
+      await removeCloudinaryAssetByUrl(existing.foto, "mahasiswa");
+      fotoUrl = (await uploadBufferToCloudinary(req.file.buffer, "mahasiswa")).secure_url;
+    }
+
+    let email;
+    if (req.body.email !== undefined) {
+      email = String(req.body.email ?? "").trim();
+      if (!email) {
+        return res.status(400).json({ message: "Email wajib diisi" });
       }
-
-      // upload foto baru
-      const result = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream({ folder: "mahasiswa" }, (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        });
-        stream.end(req.file.buffer);
-      });
-
-      fotoUrl = result.secure_url;
     }
 
     const data = await prisma.mahasiswa.update({
-      where: { id },
+      where: { id: req.params.id },
       data: {
-        nama,
-        nim,
-        jurusan,
-        prodiId: parseInt(prodiId),
-        ...(fotoUrl && { foto: fotoUrl }),
+        nama: req.body.nama,
+        nim: req.body.nim,
+        ...(email !== undefined && { email }),
+        alamat: req.body.alamat,
+        telp: req.body.telp,
+        tempatLahir: req.body.tempatLahir,
+        tanggalLahir: req.body.tanggalLahir ? new Date(req.body.tanggalLahir) : undefined,
+        semester: req.body.semester !== undefined ? Number(req.body.semester) : undefined,
+        prodiId: req.body.prodiId !== undefined ? Number(req.body.prodiId) : undefined,
+        foto: fotoUrl,
       },
     });
 
-    res.json(data);
+    return res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
 
-// DELETE
-// exports.remove = async (req, res) => {
-//   try {
-//     const id = parseInt(req.params.id);
-
-//     await prisma.mahasiswa.delete({
-//       where: { id },
-//     });
-
-//     res.json({ message: "Mahasiswa berhasil dihapus" });
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// };
-
-exports.remove = async (req, res) => {
+exports.remove = async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
+    const existing = await prisma.mahasiswa.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ message: "Mahasiswa tidak ditemukan" });
 
-    const existing = await prisma.mahasiswa.findUnique({
-      where: { id },
-    });
+    await removeCloudinaryAssetByUrl(existing.foto, "mahasiswa");
+    await prisma.mahasiswa.delete({ where: { id: req.params.id } });
 
-    // hapus foto di cloud
-    if (existing?.foto) {
-      const publicId = existing.foto.split("/").pop().split(".")[0];
-      await cloudinary.uploader.destroy(`mahasiswa/${publicId}`);
-    }
-
-    await prisma.mahasiswa.delete({
-      where: { id },
-    });
-
-    res.json({ message: "Mahasiswa berhasil dihapus" });
+    return res.json({ message: "Mahasiswa berhasil dihapus" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };

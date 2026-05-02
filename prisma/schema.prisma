@@ -17,9 +17,14 @@ model Mahasiswa{
   id Int @id @default(autoincrement())
   nama String
   nim String @unique
-  jurusan String 
-  prodiId Int   
-  foto String? 
+  email String @unique
+  alamat String
+  telp String
+  tempatLahir String
+  tanggalLahir DateTime @db.Date
+  semester Int
+  prodiId Int
+  foto String?
   kartu KartuMahasiswa?
   krs Krs[]
   createdAt DateTime @default(now())
@@ -37,20 +42,260 @@ model KartuMahasiswa{
 model Prodi{
   id Int @id @default(autoincrement())
   nama String
+  namaKaprodi String?
+  peringkatAkreditasi String?
+  jurusanId Int?
   mahasiswa Mahasiswa[]
+  matakuliah Matakuliah[]
+  dosen Dosen[]
+  jadwalKuliah JadwalKuliah[]
+  jurusan Jurusan? @relation(fields:[jurusanId], references:[id])
 }
 
 model Matakuliah{
   id Int @id @default(autoincrement())
+  kodeMatakuliah String @unique
   nama String
+  sks Int
+  deskripsiMatakuliah String
+  kategori String
+  semester Int
+  prodiId Int
+  laboratoriumId Int?
   krs Krs[]
+  prodi Prodi @relation(fields:[prodiId], references:[id])
+  pengampu PengampuMatakuliah[]
+  bahanAjar BahanAjar[]
+  jadwalKuliah JadwalKuliah[]
+  laboratorium Laboratorium? @relation(fields:[laboratoriumId], references:[id])
 }
 
 model Krs{
   id Int @id @default(autoincrement())
   mahasiswaId Int
   matakuliahId Int
+  semester Int
+  tahunAjaran String
+  nilai Int?
   mahasiswa Mahasiswa @relation(fields:[mahasiswaId],references:[id])
   matakuliah Matakuliah @relation(fields:[matakuliahId],references:[id])
 
+  @@unique([mahasiswaId, matakuliahId, semester, tahunAjaran])
+}
+
+model Jurusan{
+  id Int @id @default(autoincrement())
+  namaJurusan String
+  kajur String
+  prodi Prodi[]
+}
+
+model Dosen{
+  id Int @id @default(autoincrement())
+  nip String @unique
+  email String @unique
+  namaDosen String
+  tempatLahir String
+  tanggalLahir DateTime @db.Date
+  alamat String
+  telp String
+  foto String?
+  prodiId Int
+  prodi Prodi @relation(fields:[prodiId], references:[id])
+  pengampuMatakuliah PengampuMatakuliah[]
+  penelitianKetua Penelitian[] @relation("KetuaPenelitian")
+  anggotaPenelitian AnggotaPenelitian[]
+  pengabdianKetua Pengabdian[] @relation("KetuaPengabdian")
+  anggotaPengabdian AnggotaPengabdian[]
+  publikasiJurnal PublikasiJurnal[]
+  bahanAjar BahanAjar[]
+  hki Hki[]
+  jadwalKuliah JadwalKuliah[]
+}
+
+model Tendik{
+  id Int @id @default(autoincrement())
+  nip String @unique
+  namaTendik String
+  alamatTendik String
+  notelpTendik String
+  foto String?
+  absen AbsenTendik[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AbsenTendik{
+  id Int @id @default(autoincrement())
+  tendikId Int
+  latitude Float
+  longitude Float
+  jarakMeter Float
+  status StatusAbsenTendik @default(HADIR)
+  diambilPada DateTime @default(now())
+  tendik Tendik @relation(fields:[tendikId], references:[id])
+}
+
+model PengampuMatakuliah{
+  id Int @id @default(autoincrement())
+  dosenId Int
+  matakuliahId Int
+  kelas String
+  semester Int
+  tahunAjaran String
+  dosen Dosen @relation(fields:[dosenId], references:[id])
+  matakuliah Matakuliah @relation(fields:[matakuliahId], references:[id])
+
+  @@unique([dosenId, matakuliahId, kelas, semester, tahunAjaran])
+}
+
+model Penelitian{
+  id Int @id @default(autoincrement())
+  judul String
+  topik String
+  sumberDana SumberDana
+  namaHibah String?
+  tahun Int
+  ketuaId Int
+  ketua Dosen @relation("KetuaPenelitian", fields:[ketuaId], references:[id])
+  anggota AnggotaPenelitian[]
+  publikasiJurnal PublikasiJurnal[]
+  hki Hki[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Pengabdian{
+  id Int @id @default(autoincrement())
+  judul String
+  topik String
+  sumberDana SumberDana
+  namaHibah String?
+  tahun Int
+  ketuaId Int
+  ketua Dosen @relation("KetuaPengabdian", fields:[ketuaId], references:[id])
+  anggota AnggotaPengabdian[]
+  publikasiJurnal PublikasiJurnal[]
+  hki Hki[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AnggotaPenelitian{
+  id Int @id @default(autoincrement())
+  penelitianId Int
+  dosenId Int
+  peran String?
+  penelitian Penelitian @relation(fields:[penelitianId], references:[id])
+  dosen Dosen @relation(fields:[dosenId], references:[id])
+
+  @@unique([penelitianId, dosenId])
+}
+
+model AnggotaPengabdian{
+  id Int @id @default(autoincrement())
+  pengabdianId Int
+  dosenId Int
+  peran String?
+  pengabdian Pengabdian @relation(fields:[pengabdianId], references:[id])
+  dosen Dosen @relation(fields:[dosenId], references:[id])
+
+  @@unique([pengabdianId, dosenId])
+}
+
+model PublikasiJurnal{
+  id Int @id @default(autoincrement())
+  judul String
+  namaJurnal String
+  tahun Int
+  doi String?
+  url String?
+  dosenId Int
+  penelitianId Int?
+  pengabdianId Int?
+  dosen Dosen @relation(fields:[dosenId], references:[id])
+  penelitian Penelitian? @relation(fields:[penelitianId], references:[id])
+  pengabdian Pengabdian? @relation(fields:[pengabdianId], references:[id])
+}
+
+model BahanAjar{
+  id Int @id @default(autoincrement())
+  judul String
+  kategori KategoriBahanAjar
+  penerbit String?
+  isbn String?
+  tahun Int
+  matakuliahId Int
+  matakuliah Matakuliah @relation(fields:[matakuliahId], references:[id])
+  dosen Dosen[]
+}
+
+model Hki{
+  id Int @id @default(autoincrement())
+  judul String
+  nomorPendaftaran String?
+  jenis String
+  tahun Int
+  penelitianId Int?
+  pengabdianId Int?
+  dosen Dosen[]
+  penelitian Penelitian? @relation(fields:[penelitianId], references:[id])
+  pengabdian Pengabdian? @relation(fields:[pengabdianId], references:[id])
+}
+
+model Laboratorium{
+  id Int @id @default(autoincrement())
+  namaLab String
+  kepalaLab String
+  matakuliah Matakuliah[]
+  jadwalKuliah JadwalKuliah[]
+}
+
+model JadwalKuliah{
+  id Int @id @default(autoincrement())
+  prodiId Int
+  matakuliahId Int
+  lokasiPerkuliahan LokasiPerkuliahan
+  ruangKelas String?
+  laboratoriumId Int?
+  kelas String
+  semester Int
+  tahunAjaran String
+  hari HariKuliah
+  jamMulai DateTime @db.Time
+  jamSelesai DateTime @db.Time
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  prodi Prodi @relation(fields:[prodiId], references:[id])
+  matakuliah Matakuliah @relation(fields:[matakuliahId], references:[id])
+  dosen Dosen[]
+  laboratorium Laboratorium? @relation(fields:[laboratoriumId], references:[id])
+}
+
+enum SumberDana {
+  MANDIRI
+  HIBAH
+}
+
+enum KategoriBahanAjar {
+  BUKU
+  MODUL
+}
+
+enum StatusAbsenTendik {
+  HADIR
+}
+
+enum HariKuliah {
+  SENIN
+  SELASA
+  RABU
+  KAMIS
+  JUMAT
+  SABTU
+}
+
+enum LokasiPerkuliahan {
+  RUANG_KELAS
+  LABORATORIUM
 }

@@ -1,11 +1,13 @@
 const express = require("express");
-const router = express.Router();
 const controller = require("../controllers/prodiController");
+const { validateIdParam } = require("../middleware/validateId");
+
+const router = express.Router();
 
 router.get("/", controller.getAll);
-router.get("/:id", controller.getById);
+router.get("/:id", validateIdParam, controller.getById);
 router.post("/", controller.create);
-router.put("/:id", controller.update);
-router.delete("/:id", controller.remove);
+router.put("/:id", validateIdParam, controller.update);
+router.delete("/:id", validateIdParam, controller.remove);
 
 module.exports = router;

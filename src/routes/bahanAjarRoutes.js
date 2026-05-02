@@ -1,5 +1,5 @@
 const express = require("express");
-const controller = require("../controllers/krsController");
+const controller = require("../controllers/bahanAjarController");
 const { validateIdParam } = require("../middleware/validateId");
 
 const router = express.Router();

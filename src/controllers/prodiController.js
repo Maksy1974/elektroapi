@@ -1,82 +1,67 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../lib/prisma");
 
-// GET ALL
-exports.getAll = async (req, res) => {
+exports.getAll = async (req, res, next) => {
   try {
     const data = await prisma.prodi.findMany({
-      include: {
-        mahasiswa: true, // tampilkan relasi
-      },
+      include: { jurusan: true, mahasiswa: true, matakuliah: true, dosen: true },
     });
-
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-// GET BY ID
-exports.getById = async (req, res) => {
+exports.getById = async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
-
     const data = await prisma.prodi.findUnique({
-      where: { id },
-      include: {
-        mahasiswa: true,
+      where: { id: req.params.id },
+      include: { jurusan: true, mahasiswa: true, matakuliah: true, dosen: true },
+    });
+    if (!data) return res.status(404).json({ message: "Prodi tidak ditemukan" });
+    return res.json(data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.create = async (req, res, next) => {
+  try {
+    const data = await prisma.prodi.create({
+      data: {
+        nama: req.body.nama,
+        namaKaprodi: req.body.namaKaprodi,
+        peringkatAkreditasi: req.body.peringkatAkreditasi,
+        jurusanId: req.body.jurusanId ? Number(req.body.jurusanId) : null,
       },
     });
-
-    res.json(data);
+    return res.status(201).json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
 
-// CREATE
-exports.create = async (req, res) => {
+exports.update = async (req, res, next) => {
   try {
-    const { nama } = req.body;
-
-    const data = await prisma.prodi.create({
-      data: { nama },
-    });
-
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// UPDATE
-exports.update = async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const { nama } = req.body;
-
     const data = await prisma.prodi.update({
-      where: { id },
-      data: { nama },
+      where: { id: req.params.id },
+      data: {
+        nama: req.body.nama,
+        namaKaprodi: req.body.namaKaprodi,
+        peringkatAkreditasi: req.body.peringkatAkreditasi,
+        jurusanId: req.body.jurusanId !== undefined ? Number(req.body.jurusanId) : undefined,
+      },
     });
-
-    res.json(data);
+    return res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
 
-// DELETE
-exports.remove = async (req, res) => {
+exports.remove = async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
-
-    await prisma.prodi.delete({
-      where: { id },
-    });
-
-    res.json({ message: "Prodi berhasil dihapus" });
+    await prisma.prodi.delete({ where: { id: req.params.id } });
+    return res.json({ message: "Prodi berhasil dihapus" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return next(error);
   }
 };
