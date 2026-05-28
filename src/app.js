@@ -19,9 +19,11 @@ const tendikRoutes = require("./routes/tendikRoutes");
 const jadwalKuliahRoutes = require("./routes/jadwalKuliahRoutes");
 const khsRoutes = require("./routes/khsRoutes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
+const { requireAdminForMutations } = require("./middleware/requireAdminForMutations");
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(requireAdminForMutations);
 app.get("/", (req, res) => {
   res.send("API Sistem Akademik berjalan");
 });
